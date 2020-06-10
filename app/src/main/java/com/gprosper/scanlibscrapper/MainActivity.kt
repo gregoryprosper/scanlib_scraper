@@ -8,6 +8,9 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.webkit.JavascriptInterface
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.gprosper.scanlibscrapper.model.Page
@@ -30,6 +33,16 @@ class MainActivity : AppCompatActivity() {
 
         webView.settings.javaScriptEnabled = true
         webView.addJavascriptInterface(this, "HTMLOUT")
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                return false;
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        loadClipboardUrl()
     }
 
     @JavascriptInterface
@@ -39,6 +52,19 @@ class MainActivity : AppCompatActivity() {
             scrapeSite(html) {
                 progressBar.visibility = View.GONE
                 scrapeButton.isEnabled = true
+            }
+        }
+    }
+
+    private fun loadClipboardUrl() {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        if (clipboard.hasPrimaryClip()){
+            clipboard.primaryClip?.let { clipData ->
+                clipData.getItemAt(0)?.let { item ->
+                    if (item.text.startsWith("https")){
+                        urlEditText.setText(item.text)
+                    }
+                }
             }
         }
     }
@@ -66,7 +92,12 @@ class MainActivity : AppCompatActivity() {
         progressBar.progress = 0
         progressBar.visibility = View.VISIBLE
 
-        val url = URL(urlEditText.text.toString())
+        val url = URL(urlEditText.text.toString().let {
+            when {
+                it.endsWith("/") -> it
+                else -> "${it}/"
+            }
+        })
         val jspoon = Jspoon.create()
         val htmlAdapter: HtmlAdapter<Page> = jspoon.adapter(Page::class.java)
         val client = OkHttpClient()
@@ -118,7 +149,7 @@ class MainActivity : AppCompatActivity() {
                         countdownLatch.countDown()
                     }
                 })
-                Thread.sleep(3000)
+                Thread.sleep(1000)
             }
 
             countdownLatch.await()
