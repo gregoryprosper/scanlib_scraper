@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -38,11 +39,8 @@ class MainActivity : AppCompatActivity() {
                 return false;
             }
         }
-    }
 
-    override fun onResume() {
-        super.onResume()
-        loadClipboardUrl()
+        processIntent(intent)
     }
 
     @JavascriptInterface
@@ -56,14 +54,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadClipboardUrl() {
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        if (clipboard.hasPrimaryClip()){
-            clipboard.primaryClip?.let { clipData ->
-                clipData.getItemAt(0)?.let { item ->
-                    if (item.text.startsWith("https")){
-                        urlEditText.setText(item.text)
+    private fun processIntent(intent: Intent?) {
+        intent?.let {
+            when {
+                it.action == Intent.ACTION_SEND -> {
+                    if (it.clipData != null && it.clipData!!.itemCount > 0) {
+                        it.clipData?.getItemAt(0)?.text?.let {
+                            if (it.startsWith("https") || it.startsWith("http")) {
+                                urlEditText.setText(it)
+                                webView.loadUrl(it.toString())
+                            }
+                        }
                     }
+                }
+                else -> {
+
                 }
             }
         }
