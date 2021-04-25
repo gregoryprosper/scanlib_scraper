@@ -4,6 +4,6 @@ import pl.droidsonroids.jspoon.annotation.Selector
 
 class Page() {
 
-    @Selector(".rewlink", attr = "data-url")
+    @Selector(".rewlink", attr = "href")
     lateinit var linkList: List<String>
 }
