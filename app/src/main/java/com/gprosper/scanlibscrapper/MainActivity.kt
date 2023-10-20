@@ -6,25 +6,20 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
-import android.view.View
-import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.gprosper.scanlibscrapper.model.Page
-import kotlinx.android.synthetic.main.activity_main.*
-import okhttp3.*
-import pl.droidsonroids.jspoon.HtmlAdapter
-import pl.droidsonroids.jspoon.Jspoon
-import java.io.IOException
-import java.net.URL
-import java.util.concurrent.CountDownLatch
-
+import kotlinx.android.synthetic.main.activity_main.goButton
+import kotlinx.android.synthetic.main.activity_main.resultsEditText
+import kotlinx.android.synthetic.main.activity_main.urlEditText
+import kotlinx.android.synthetic.main.activity_main.webView
+import java.util.HashSet
 
 class MainActivity : AppCompatActivity() {
+
+    private val set = HashSet<String>()
 
     @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,25 +28,17 @@ class MainActivity : AppCompatActivity() {
         setupListeners()
 
         webView.settings.javaScriptEnabled = true
-        webView.addJavascriptInterface(this, "HTMLOUT")
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                return false;
+                if (request?.url?.toString()?.contains("goto") == true) {
+                    open(request.url.toString(), urlEditText.text.toString())
+                    return true
+                }
+                return false
             }
         }
 
         processIntent(intent)
-    }
-
-    @JavascriptInterface
-    fun processHTML(html: String) {
-        runOnUiThread {
-            scrapeButton.isEnabled = false
-            scrapeSite(html) {
-                progressBar.visibility = View.GONE
-                scrapeButton.isEnabled = true
-            }
-        }
     }
 
     private fun processIntent(intent: Intent?) {
@@ -68,7 +55,6 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 else -> {
-
                 }
             }
         }
@@ -76,11 +62,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupListeners() {
         goButton.setOnClickListener {
-            webView.loadUrl(urlEditText.text.toString());
-        }
-
-        scrapeButton.setOnClickListener {
-            webView.loadUrl("javascript:window.HTMLOUT.processHTML('<html>'+document.getElementsByTagName('html')[0].innerHTML+'</html>');")
+            webView.loadUrl(urlEditText.text.toString())
         }
 
         resultsEditText.setOnLongClickListener {
@@ -88,79 +70,35 @@ class MainActivity : AppCompatActivity() {
             val clip = ClipData.newPlainText("ScanlibText", resultsEditText.text.toString())
             clipboard!!.setPrimaryClip(clip)
             resultsEditText.text.clear()
-            Toast.makeText(this, "Copied to clipboard", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Copied to clipboard", Toast.LENGTH_LONG).show()
             return@setOnLongClickListener true
         }
     }
 
-    private fun scrapeSite(html: String, completed: () -> Unit) {
-        progressBar.progress = 0
-        progressBar.visibility = View.VISIBLE
-
-        val url = URL(urlEditText.text.toString().let {
-            when {
-                it.endsWith("/") -> it
-                else -> "${it}/"
-            }
-        })
-        val jspoon = Jspoon.create()
-        val htmlAdapter: HtmlAdapter<Page> = jspoon.adapter(Page::class.java)
-        val client = OkHttpClient()
-
-        Thread {
-            val page = htmlAdapter.fromHtml(html)
-            val countdownLatch = CountDownLatch(page.linkList.size)
-
-            progressBar.max = page.linkList.size
-
-            page.linkList.forEach {
-                val linkUrl = "${url}${it}"
-                val request = Request.Builder()
-                        .url(linkUrl)
-                        .addHeader("Referer", url.toString())
-                        .build()
-
-                client.newCall(request).enqueue(object: Callback {
-                    override fun onFailure(call: Call?, e: IOException?) {
-                        this@MainActivity.runOnUiThread {
-                            progressBar.progress++
-                            Toast.makeText(this@MainActivity, "Error occured.", Toast.LENGTH_LONG).show()
-                        }
-                        countdownLatch.countDown()
+    fun open(url: String, from: String) {
+        val webView = WebView(this)
+        webView.settings.javaScriptEnabled = true
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                if (request?.url?.host?.contains("rapidgator.net") == true) {
+                    if (!set.contains(request.url.toString())) {
+                        set.add(request.url.toString())
+                        resultsEditText.text.append("${request.url}\n\n")
                     }
-
-                    override fun onResponse(call: Call?, response: Response?) {
-                        Log.d("GREG", response.toString());
-                        response?.priorResponse()?.let {
-                            val redirectUrl: String? = it.header("Location")?.trimStart('/')?.trimStart('/')
-                            redirectUrl?.let rd@{
-                                if (it.startsWith("https://scanlibs.com"))
-                                    return@rd
-
-                                if (it.startsWith("http")) {
-                                    runOnUiThread {
-                                        resultsEditText.text.append("${it}\n\n")
-                                    }
-                                } else {
-                                    val fixedUrl = "http://" + it
-                                    runOnUiThread {
-                                        resultsEditText.text.append("${fixedUrl}\n\n")
-                                    }
-                                }
-                            }
-                        }
-
-                        progressBar.progress++
-                        countdownLatch.countDown()
+                } else if (request?.url?.host?.contains("turbobit.net") == true) {
+                    if (!set.contains(request.url.toString())) {
+                        set.add(request.url.toString())
+                        resultsEditText.text.append("${request.url}\n\n")
                     }
-                })
-                Thread.sleep(1000)
+                }
+                return false
             }
-
-            countdownLatch.await()
-            runOnUiThread {
-                completed()
-            }
-        }.start()
+        }
+        webView.loadUrl(
+            url,
+            mapOf(
+                "Referer" to from
+            )
+        )
     }
 }
