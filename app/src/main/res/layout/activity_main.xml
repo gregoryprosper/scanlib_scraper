@@ -34,6 +34,13 @@
             android:layout_gravity="center_vertical"
             android:text="Go"/>
 
+        <Button
+            android:id="@+id/scrapeButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:text="Scrape"/>
+
     </LinearLayout>
 
     <WebView
@@ -41,6 +48,11 @@
         android:layout_weight="4"
         android:layout_width="match_parent"
         android:layout_height="0dp"/>
+
+    <TextView
+        android:id="@+id/countTxtView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"/>
 
     <EditText
         android:id="@+id/resultsEditText"
