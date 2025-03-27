@@ -54,8 +54,8 @@ class MainActivity : AppCompatActivity() {
         intent?.let {
             when {
                 it.action == Intent.ACTION_SEND -> {
-                    if (it.clipData != null && it.clipData!!.itemCount > 0) {
-                        it.clipData?.getItemAt(0)?.text?.let {
+                    it.clipData?.takeIf { it.itemCount > 0 }?.let {
+                        it.getItemAt(0)?.text?.let {
                             if (it.startsWith("https") || it.startsWith("http")) {
                                 binding.urlEditText.setText(it)
                                 binding.webView.loadUrl(it.toString())
