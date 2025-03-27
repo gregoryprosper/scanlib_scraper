@@ -63,8 +63,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                 }
-                else -> {
-                }
+                else -> Unit
             }
         }
     }
