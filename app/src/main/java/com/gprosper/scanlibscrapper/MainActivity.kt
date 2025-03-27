@@ -6,36 +6,41 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.webkit.JavascriptInterface
+import android.util.Log
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import kotlinx.android.synthetic.main.activity_main.countTxtView
-import kotlinx.android.synthetic.main.activity_main.goButton
-import kotlinx.android.synthetic.main.activity_main.resultsEditText
-import kotlinx.android.synthetic.main.activity_main.scrapeButton
-import kotlinx.android.synthetic.main.activity_main.urlEditText
-import kotlinx.android.synthetic.main.activity_main.webView
-import java.util.HashSet
+import androidx.lifecycle.lifecycleScope
+import com.gprosper.scanlibscrapper.databinding.ActivityMainBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import okhttp3.Dispatcher
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityMainBinding
+
     private val set = HashSet<String>()
+    private var scrapeJob: Job? = null
 
     @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface", "JavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
         setupListeners()
 
-        webView.settings.javaScriptEnabled = true
-        webView.addJavascriptInterface(this, "HTMLOUT")
-        webView.webViewClient = object : WebViewClient() {
+        binding.webView.settings.javaScriptEnabled = true
+        binding.webView.addJavascriptInterface(this, "HTMLOUT")
+        binding.webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 if (request?.url?.toString()?.contains("goto") == true) {
-                    open(request.url.toString(), urlEditText.text.toString())
+                    open(request.url.toString(), binding.urlEditText.text.toString())
                     return true
                 }
                 return false
@@ -52,8 +57,8 @@ class MainActivity : AppCompatActivity() {
                     if (it.clipData != null && it.clipData!!.itemCount > 0) {
                         it.clipData?.getItemAt(0)?.text?.let {
                             if (it.startsWith("https") || it.startsWith("http")) {
-                                urlEditText.setText(it)
-                                webView.loadUrl(it.toString())
+                                binding.urlEditText.setText(it)
+                                binding.webView.loadUrl(it.toString())
                             }
                         }
                     }
@@ -65,19 +70,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        goButton.setOnClickListener {
-            webView.loadUrl(urlEditText.text.toString())
+        binding.goButton.setOnClickListener {
+            binding.webView.loadUrl(binding.urlEditText.text.toString())
         }
-        scrapeButton.setOnClickListener {
+        binding.scrapeButton.setOnClickListener {
             startScraping()
         }
 
-        resultsEditText.setOnLongClickListener {
+        binding.resultsEditText.setOnLongClickListener {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("ScanlibText", resultsEditText.text.toString())
+            val clip = ClipData.newPlainText(
+                "ScanlibText",
+                binding.resultsEditText.text.toString()
+            )
             clipboard!!.setPrimaryClip(clip)
             set.clear()
-            resultsEditText.text.clear()
+            binding.resultsEditText.text.clear()
             Toast.makeText(this, "Copied to clipboard", Toast.LENGTH_LONG).show()
             return@setOnLongClickListener true
         }
@@ -108,21 +116,23 @@ class MainActivity : AppCompatActivity() {
     fun addUrl(url: String) {
         if (set.contains(url)) return
         set.add(url)
-        countTxtView.text = "Found: ${set.size} links"
-        resultsEditText.setText(set.joinToString(separator = "\n\n"))
+        binding.countTxtView.text = "Found: ${set.size} links"
+        binding.resultsEditText.setText(set.joinToString(separator = "\n\n"))
     }
 
     private fun startScraping() {
-        Thread {
+        scrapeJob?.cancel()
+        scrapeJob = lifecycleScope.launch(Dispatchers.IO) {
             var index = 0
-            while(index < 50) {
+            while(index < 50 && isActive) {
                 runOnUiThread {
-                    webView.loadUrl(getScrapingJavaScript(index))
+                    binding.webView.loadUrl(getScrapingJavaScript(index))
                 }
                 index++
                 Thread.sleep(1000)
             }
-        }.start()
+            Log.d("Scraping", "Finished scraping")
+        }
     }
 
     private fun getScrapingJavaScript(index: Int): String {
