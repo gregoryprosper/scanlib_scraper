@@ -99,6 +99,8 @@ class MainActivity : AppCompatActivity() {
                     addUrl(request.url.toString())
                 } else if (request?.url?.host?.contains("turbobit.net") == true) {
                     addUrl(request.url.toString())
+                } else if (request?.url?.host?.contains("torbobit.net") == true) {
+                    addUrl(request.url.toString().replace("torbobit", "turbobit"))
                 }
                 return false
             }
@@ -128,7 +130,7 @@ class MainActivity : AppCompatActivity() {
                     binding.webView.loadUrl(getScrapingJavaScript(index))
                 }
                 index++
-                Thread.sleep(1000)
+                Thread.sleep(500)
             }
             Log.d("Scraping", "Finished scraping")
         }
