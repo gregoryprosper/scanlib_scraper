@@ -101,6 +101,8 @@ class MainActivity : AppCompatActivity() {
                     addUrl(request.url.toString())
                 } else if (request?.url?.host?.contains("torbobit.net") == true) {
                     addUrl(request.url.toString().replace("torbobit", "turbobit"))
+                } else if (request?.url?.host?.contains("trbt.cc") == true) {
+                    addUrl(request.url.toString().replace("trbt.cc", "turbobit.net"))
                 }
                 return false
             }
