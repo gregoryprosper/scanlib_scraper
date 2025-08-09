@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.gprosper.scanlibscrapper.databinding.ActivityMainBinding
+import com.gprosper.scanlibscrapper.services.ShareService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
@@ -74,6 +75,9 @@ class MainActivity : AppCompatActivity() {
         }
         binding.scrapeButton.setOnClickListener {
             startScraping()
+        }
+        binding.shareButton.setOnClickListener {
+            ShareService.shareLinksToMyJD(this, set.toList())
         }
 
         binding.resultsEditText.setOnLongClickListener {
